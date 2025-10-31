@@ -1,0 +1,1 @@
+Place JazzCash and Easypaisa logo PNGs here as 'jazzcash.png' and 'easypaisa.png' (optional).
