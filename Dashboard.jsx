@@ -55,7 +55,8 @@ export default function Dashboard({user, profile}){
     e.preventDefault()
     const amount = parseFloat(e.target.amount.value)
     const file = e.target.proof.files[0]
-    if (!amount || isNaN(amount) or amount<=0) { alert('Invalid amount'); return }
+    if (!amount || isNaN(amount) || amount <= 0) { alert('Invalid amount'); return }
+
     if (!file) return alert('Please upload screenshot as proof')
     setUploading(true)
     // upload file to supabase storage 'deposit-proofs'
