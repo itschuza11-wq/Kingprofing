@@ -1,52 +1,77 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
-import AdminPanel from './AdminPanel'
 
-export default function App(){
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-
-  useEffect(() => {
-    let mounted = true
-    supabase.auth.getSession().then(r => { if (mounted) setUser(r.data.session?.user ?? null) })
-    const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => setUser(session?.user ?? null))
-    return () => { mounted = false; sub.subscription.unsubscribe() }
-  },[])
-
-  useEffect(() => {
-    async function loadProfile(){
-      if (!user) return
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      setProfile(data || null)
-    }
-    loadProfile()
-  },[user])
-
-  if (!user) return <AuthUI />
-  if (!profile) return <div className="center">Loading profile...</div>
-  if (profile.is_admin) return <AdminPanel profile={profile} user={user} />
-  return <Dashboard user={user} profile={profile} />
-}
-
-function AuthUI(){
+export default function App() {
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
-  async function signIn() {
-    if (!email) return alert('Enter email')
-    const { error } = await supabase.auth.signInWithOtp({ email })
-    if (error) return alert(error.message)
-    alert('Magic link sent — check your email.')
+  const [password, setPassword] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setLoading(false)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  async function handleLogin(e) {
+    e.preventDefault()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (error) alert(error.message)
   }
-  return (
-    <div className="center">
-      <div className="card auth">
-        <h2>KingProfit</h2>
-        <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-        <div style={{marginTop:10}}>
-          <button className="btn" onClick={signIn}>Send magic link</button>
-        </div>
-        <p className="muted">No password — login via email link.</p>
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setSession(null)
+  }
+
+  if (loading) return <div>Loading...</div>
+
+  if (!session)
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0b0b0b', color:'#fff' }}>
+        <form onSubmit={handleLogin} style={{ width:320, background:'#111', padding:20, borderRadius:12 }}>
+          <h2 style={{ color:'#c59a2f', marginBottom:12 }}>KingProfit — Login</h2>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ width:'100%', padding:10, borderRadius:8, marginBottom:8 }}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ width:'100%', padding:10, borderRadius:8, marginBottom:12 }}
+          />
+          <button
+            type="submit"
+            style={{ width:'100%', padding:10, borderRadius:8, background:'#c59a2f', border:'none', cursor:'pointer' }}
+          >
+            Login
+          </button>
+        </form>
       </div>
+    )
+
+  return (
+    <div>
+      <button onClick={handleLogout} style={{position:'absolute',top:10,right:10}}>Logout</button>
+      <Dashboard user={session.user} profile={{display_name: session.user.email}} />
     </div>
   )
 }
