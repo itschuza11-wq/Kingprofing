@@ -1,77 +1,106 @@
-import React, { useEffect, useState } from 'react'
-import { supabase } from './supabaseClient'
-import Dashboard from './Dashboard'
+import React, { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
+import Dashboard from "./Dashboard";
 
 export default function App() {
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [session, setSession] = useState(null);
+  const [authMode, setAuthMode] = useState("login"); // login or signup
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
+    const currentSession = supabase.auth.getSession();
+    currentSession.then(({ data }) => {
+      setSession(data?.session);
+    });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
-    return () => listener.subscription.unsubscribe()
-  }, [])
+  async function handleAuth(e) {
+    e.preventDefault();
+    setLoading(true);
+    const email = e.target.email.value.trim();
+    const password = e.target.password.value.trim();
 
-  async function handleLogin(e) {
-    e.preventDefault()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (error) alert(error.message)
+    if (!email || !password) {
+      alert("Please enter email and password.");
+      setLoading(false);
+      return;
+    }
+
+    if (authMode === "login") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert(error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) alert(error.message);
+      else alert("Account created successfully! You can now log in.");
+      setAuthMode("login");
+    }
+
+    setLoading(false);
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut()
-    setSession(null)
+    await supabase.auth.signOut();
   }
 
-  if (loading) return <div>Loading...</div>
-
-  if (!session)
+  if (!session) {
     return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0b0b0b', color:'#fff' }}>
-        <form onSubmit={handleLogin} style={{ width:320, background:'#111', padding:20, borderRadius:12 }}>
-          <h2 style={{ color:'#c59a2f', marginBottom:12 }}>KingProfit — Login</h2>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width:'100%', padding:10, borderRadius:8, marginBottom:8 }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width:'100%', padding:10, borderRadius:8, marginBottom:12 }}
-          />
-          <button
-            type="submit"
-            style={{ width:'100%', padding:10, borderRadius:8, background:'#c59a2f', border:'none', cursor:'pointer' }}
-          >
-            Login
+      <div className="auth-container">
+        <h2>KingProfit — {authMode === "login" ? "Login" : "Sign Up"}</h2>
+
+        <form onSubmit={handleAuth} className="card">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="Enter email" required />
+
+          <label>Password</label>
+          <input type="password" name="password" placeholder="Enter password" required />
+
+          <button className="btn" type="submit" disabled={loading}>
+            {loading
+              ? "Please wait..."
+              : authMode === "login"
+              ? "Login"
+              : "Sign Up"}
           </button>
         </form>
+
+        <p style={{ marginTop: 12 }}>
+          {authMode === "login" ? (
+            <>
+              Don’t have an account?{" "}
+              <button className="link" onClick={() => setAuthMode("signup")}>
+                Sign Up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button className="link" onClick={() => setAuthMode("login")}>
+                Login
+              </button>
+            </>
+          )}
+        </p>
       </div>
-    )
+    );
+  }
 
   return (
     <div>
-      <button onClick={handleLogout} style={{position:'absolute',top:10,right:10}}>Logout</button>
-      <Dashboard user={session.user} profile={{display_name: session.user.email}} />
+      <Dashboard user={session.user} />
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <button className="btn" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
     </div>
-  )
-}
+  );
+        }
+        
