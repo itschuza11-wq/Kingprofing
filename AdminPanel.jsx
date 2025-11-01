@@ -103,6 +103,4 @@ export default function AdminPanel({profile, user}){
       <table className="tx"><thead><tr><th>Name/Email</th><th>Admin</th><th>Created</th></tr></thead>
         <tbody>{users.map(u => (<tr key={u.id}><td>{u.display_name || u.id}</td><td>{u.is_admin ? 'Yes' : 'No'}</td><td>{new Date(u.created_at).toLocaleString()}</td></tr>))}</tbody>
       </table>
-    </div>
-  )
-}
+    </div
