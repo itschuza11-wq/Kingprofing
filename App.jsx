@@ -1,72 +1,70 @@
-import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
-import { supabase } from './supabaseClient'
-import Dashboard from './Dashboard'
-import Admin from './Admin'
+import React, { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+const supabase = createClient(
+  "https://YOUR_PROJECT_URL.supabase.co",
+  "YOUR_ANON_KEY"
+);
 
-  async function handleLogin(e) {
-    e.preventDefault()
-    setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) return alert(error.message)
-    navigate('/dashboard')
-  }
+export default function App() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [newUser, setNewUser] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  async function handleSignup(e) {
-    e.preventDefault()
-    setLoading(true)
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    setLoading(false)
-    if (error) return alert(error.message)
-    alert('Signup successful! Now login to continue.')
-  }
-
-  return (
-    <div className="login-container">
-      <h1>KingProfit Login</h1>
-      <form>
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-        <div className="btns">
-          <button onClick={handleLogin} disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
-          <button onClick={handleSignup} disabled={loading}>Sign Up</button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function App() {
-  const [user, setUser] = useState(null)
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      setUser(data?.user || null)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    try {
+      if (newUser) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setMessage("✅ Account created successfully!");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        setMessage("✅ Login successful!");
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      setError(err.message);
     }
-    getUser()
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [])
+  };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/dashboard" element={user ? <Dashboard user={user} /> : <LoginPage />} />
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
-    </Router>
-  )
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white text-red-600">
+      <h1 className="text-3xl font-bold mb-4">KingProfit Login</h1>
+      <form onSubmit={handleSubmit} className="bg-red-100 p-6 rounded-2xl shadow-md w-80">
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full mb-3 p-2 rounded border border-red-300"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-3 p-2 rounded border border-red-300"
+          required
+        />
+        <button type="submit" className="bg-red-600 text-white w-full py-2 rounded-lg">
+          {newUser ? "Sign Up" : "Login"}
+        </button>
+      </form>
+      <p className="mt-3">
+        {newUser ? "Already have an account?" : "Don't have an account?"}{" "}
+        <button className="text-red-700 underline" onClick={() => setNewUser(!newUser)}>
+          {newUser ? "Login" : "Sign Up"}
+        </button>
+      </p>
+      {message && <p className="text-green-600 mt-3">{message}</p>}
+      {error && <p className="text-red-700 mt-3">{error}</p>}
+    </div>
+  );
 }
-
-export default App
