@@ -1,101 +1,72 @@
-eEffect } from "react";
-import { supabase } from "./supabaseClient";
-import Dashboard from "./Dashboard";
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
+import { supabase } from './supabaseClient'
+import Dashboard from './Dashboard'
+import Admin from './Admin'
 
-export default function App() {
-  const [session, setSession] = useState(null);
-  const [authMode, setAuthMode] = useState("login"); // login or signup
-  const [loading, setLoading] = useState(false);
+function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    const currentSession = supabase.auth.getSession();
-    currentSession.then(({ data }) => {
-      setSession(data?.session);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  async function handleAuth(e) {
-    e.preventDefault();
-    setLoading(true);
-    const email = e.target.email.value.trim();
-    const password = e.target.password.value.trim();
-
-    if (!email || !password) {
-      alert("Please enter email and password.");
-      setLoading(false);
-      return;
-    }
-
-    if (authMode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert(error.message);
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) alert(error.message);
-      else alert("Account created successfully! You can now log in.");
-      setAuthMode("login");
-    }
-
-    setLoading(false);
+  async function handleLogin(e) {
+    e.preventDefault()
+    setLoading(true)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
+    if (error) return alert(error.message)
+    navigate('/dashboard')
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-  }
-
-  if (!session) {
-    return (
-      <div className="auth-container">
-        <h2>KingProfit — {authMode === "login" ? "Login" : "Sign Up"}</h2>
-
-        <form onSubmit={handleAuth} className="card">
-          <label>Email</label>
-          <input type="email" name="email" placeholder="Enter email" required />
-
-          <label>Password</label>
-          <input type="password" name="password" placeholder="Enter password" required />
-
-          <button className="btn" type="submit" disabled={loading}>
-            {loading
-              ? "Please wait..."
-              : authMode === "login"
-              ? "Login"
-              : "Sign Up"}
-          </button>
-        </form>
-
-        <p style={{ marginTop: 12 }}>
-          {authMode === "login" ? (
-            <>
-              Don’t have an account?{" "}
-              <button className="link" onClick={() => setAuthMode("signup")}>
-                Sign Up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button className="link" onClick={() => setAuthMode("login")}>
-                Login
-              </button>
-            </>
-          )}
-        </p>
-      </div>
-    );
+  async function handleSignup(e) {
+    e.preventDefault()
+    setLoading(true)
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    setLoading(false)
+    if (error) return alert(error.message)
+    alert('Signup successful! Now login to continue.')
   }
 
   return (
-    <div>
-      <Dashboard user={session.user} />
-      <div style={{ textAlign: "center", marginTop: 20 }}>
-        <button className="btn" onClick={handleLogout}>
-          Logout
-        </button>
+    <div className="login-container">
+      <h1>KingProfit Login</h1>
+      <form>
+        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+        <div className="btns">
+          <button onClick={handleLogin} disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
+          <button onClick={handleSignup} disabled={loading}>Sign Up</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function App() {
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUser(data?.user || null)
+    }
+    getUser()
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/dashboard" element={user ? <Dashboard user={user} /> : <LoginPage />} />
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </Router>
+  )
+}
+
+export default App
