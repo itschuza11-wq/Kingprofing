@@ -1,150 +1,101 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 export default function Admin() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState({ title: "", description: "", reward: "" });
+  const [taskTitle, setTaskTitle] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
 
-  // Login function
-  async function handleLogin(e) {
-    e.preventDefault();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return alert(error.message);
-    setUser(data.user);
-  }
-
-  // Load tasks
+  // Load users from Supabase Auth
   useEffect(() => {
-    if (user) loadTasks();
-  }, [user]);
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.auth.admin.listUsers();
+      if (error) console.error(error);
+      else setUsers(data.users);
+    };
+    fetchUsers();
+  }, []);
 
-  async function loadTasks() {
-    const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
-    if (error) return alert(error.message);
-    setTasks(data || []);
-  }
+  // Load tasks from DB
+  useEffect(() => {
+    const fetchTasks = async () => {
+      const { data, error } = await supabase.from("tasks").select("*").order("id", { ascending: false });
+      if (error) console.error(error);
+      else setTasks(data);
+    };
+    fetchTasks();
+  }, []);
 
-  // Add new task
-  async function addTask(e) {
-    e.preventDefault();
-    const { error } = await supabase.from("tasks").insert([
-      { title: newTask.title, description: newTask.description, reward: parseFloat(newTask.reward), active: true },
+  const addTask = async () => {
+    if (!taskTitle || !assignedTo) {
+      alert("Please fill all fields");
+      return;
+    }
+    const { data, error } = await supabase.from("tasks").insert([
+      { title: taskTitle, assigned_to: assignedTo },
     ]);
-    if (error) return alert(error.message);
-    alert("✅ Task added successfully!");
-    setNewTask({ title: "", description: "", reward: "" });
-    loadTasks();
-  }
+    if (error) alert(error.message);
+    else {
+      alert("Task added!");
+      setTaskTitle("");
+      setAssignedTo("");
+      setTasks([data[0], ...tasks]);
+    }
+  };
 
-  // Delete task
-  async function deleteTask(id) {
-    if (!window.confirm("Delete this task?")) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", id);
-    if (error) return alert(error.message);
-    alert("🗑️ Task deleted");
-    loadTasks();
-  }
-
-  // If not logged in
-  if (!user)
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #ff0000, #ffffff)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          flexDirection: "column",
-          color: "#fff",
-        }}
-      >
-        <h2>Admin Login</h2>
-        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", width: 280 }}>
-          <input
-            type="email"
-            placeholder="Admin Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ marginBottom: 10, padding: 8 }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ marginBottom: 10, padding: 8 }}
-          />
-          <button type="submit" style={{ background: "#fff", color: "#ff0000", padding: 8, fontWeight: "bold" }}>
-            Login
-          </button>
-        </form>
-      </div>
-    );
-
-  // Admin Dashboard
   return (
-    <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: 20 }}>
-      <h1 style={{ color: "red" }}>🔥 KingProfit Admin Panel</h1>
-      <p>Welcome, {user.email}</p>
+    <div className="min-h-screen bg-white text-gray-800 p-8">
+      <h1 className="text-3xl font-bold text-red-600 mb-8">Admin Panel</h1>
 
-      <section style={{ marginTop: 20 }}>
-        <h3>Add New Task</h3>
-        <form onSubmit={addTask} style={{ display: "flex", flexDirection: "column", width: 300 }}>
-          <input
-            placeholder="Title"
-            value={newTask.title}
-            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            style={{ marginBottom: 8, padding: 8 }}
-          />
-          <textarea
-            placeholder="Description"
-            value={newTask.description}
-            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-            style={{ marginBottom: 8, padding: 8 }}
-          />
-          <input
-            placeholder="Reward (e.g. 10.00)"
-            type="number"
-            step="0.01"
-            value={newTask.reward}
-            onChange={(e) => setNewTask({ ...newTask, reward: e.target.value })}
-            style={{ marginBottom: 8, padding: 8 }}
-          />
-          <button type="submit" style={{ background: "red", color: "#fff", padding: 8, fontWeight: "bold" }}>
-            Add Task
-          </button>
-        </form>
-      </section>
+      {/* Add Task */}
+      <div className="bg-gray-100 p-6 rounded-xl shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4">Add New Task</h2>
+        <input
+          type="text"
+          placeholder="Task Title"
+          className="w-full p-3 mb-3 border rounded-lg"
+          value={taskTitle}
+          onChange={(e) => setTaskTitle(e.target.value)}
+        />
+        <select
+          className="w-full p-3 mb-3 border rounded-lg"
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+        >
+          <option value="">Select User</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.email}>
+              {u.email}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={addTask}
+          className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700"
+        >
+          Assign Task
+        </button>
+      </div>
 
-      <section style={{ marginTop: 40 }}>
-        <h3>All Tasks</h3>
-        {tasks.map((t) => (
-          <div
-            key={t.id}
-            style={{
-              border: "1px solid #ddd",
-              padding: 10,
-              marginBottom: 10,
-              borderRadius: 8,
-              background: "#f8f8f8",
-            }}
-          >
-            <div style={{ fontWeight: "bold" }}>{t.title}</div>
-            <div>{t.description}</div>
-            <div>Reward: {t.reward}</div>
-            <button
-              onClick={() => deleteTask(t.id)}
-              style={{ background: "red", color: "#fff", padding: "4px 10px", marginTop: 6, border: "none" }}
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-      </section>
+      {/* Task List */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">All Tasks</h2>
+        {tasks.length === 0 ? (
+          <p>No tasks yet</p>
+        ) : (
+          <ul className="space-y-3">
+            {tasks.map((task) => (
+              <li key={task.id} className="p-4 border rounded-lg flex justify-between items-center">
+                <span>
+                  <strong>{task.title}</strong> — <span className="text-gray-500">{task.assigned_to}</span>
+                </span>
+                <span className="text-sm text-gray-400">{new Date(task.created_at).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
