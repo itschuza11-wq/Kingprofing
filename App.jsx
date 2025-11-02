@@ -1,70 +1,94 @@
-import React, { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { supabase } from "./supabaseClient";
+import Admin from "./Admin";
 
-const supabase = createClient(
-  "https://YOUR_PROJECT_URL.supabase.co",
-  "YOUR_ANON_KEY"
-);
-
-export default function App() {
+function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newUser, setNewUser] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-    try {
-      if (newUser) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setMessage("✅ Account created successfully!");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        setMessage("✅ Login successful!");
-        window.location.href = "/dashboard";
+  const handleAuth = async () => {
+    if (!email || !password) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    if (isSignUp) {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) alert(error.message);
+      else alert("Signup successful! Please login now.");
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert(error.message);
+      else {
+        alert("Login successful!");
+        if (email === "itsmujahid.pk@gmail.com") {
+          navigate("/admin");
+        } else {
+          navigate("/home");
+        }
       }
-    } catch (err) {
-      setError(err.message);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white text-red-600">
-      <h1 className="text-3xl font-bold mb-4">KingProfit Login</h1>
-      <form onSubmit={handleSubmit} className="bg-red-100 p-6 rounded-2xl shadow-md w-80">
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="bg-red-600 p-8 rounded-2xl shadow-lg w-96">
+        <h1 className="text-3xl text-white font-bold mb-6 text-center">
+          {isSignUp ? "Create Account" : "Welcome Back"}
+        </h1>
+
         <input
           type="email"
           placeholder="Email"
+          className="w-full p-3 mb-3 rounded-lg outline-none"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-3 p-2 rounded border border-red-300"
-          required
         />
         <input
           type="password"
           placeholder="Password"
+          className="w-full p-3 mb-6 rounded-lg outline-none"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-3 p-2 rounded border border-red-300"
-          required
         />
-        <button type="submit" className="bg-red-600 text-white w-full py-2 rounded-lg">
-          {newUser ? "Sign Up" : "Login"}
+
+        <button
+          onClick={handleAuth}
+          className="w-full bg-white text-red-600 font-bold py-2 rounded-lg hover:bg-gray-100"
+        >
+          {isSignUp ? "Sign Up" : "Login"}
         </button>
-      </form>
-      <p className="mt-3">
-        {newUser ? "Already have an account?" : "Don't have an account?"}{" "}
-        <button className="text-red-700 underline" onClick={() => setNewUser(!newUser)}>
-          {newUser ? "Login" : "Sign Up"}
-        </button>
-      </p>
-      {message && <p className="text-green-600 mt-3">{message}</p>}
-      {error && <p className="text-red-700 mt-3">{error}</p>}
+
+        <p
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="text-center text-white mt-4 cursor-pointer underline"
+        >
+          {isSignUp ? "Already have an account? Login" : "Don't have an account? Sign Up"}
+        </p>
+      </div>
     </div>
+  );
+}
+
+function HomePage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-2xl font-bold">
+      User Dashboard (Non-admin)
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<AuthPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </Router>
   );
 }
