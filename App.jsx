@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+eEffect } from "react";
 import { supabase } from "./supabaseClient";
 import Dashboard from "./Dashboard";
 
@@ -99,8 +99,3 @@ export default function App() {
         <button className="btn" onClick={handleLogout}>
           Logout
         </button>
-      </div>
-    </div>
-  );
-        }
-        
