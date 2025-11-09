@@ -12,9 +12,7 @@ export default function App() {
     supabase.auth.onAuthStateChange((_event, session) => setSession(session));
   }, []);
 
-  if (!session) {
-    return <AuthPage />;
-  }
+  if (!session) return <AuthPage />;
 
   return (
     <Router>
@@ -34,7 +32,7 @@ function AuthPage() {
     e.preventDefault();
     const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) alert(error.message);
-    else alert("Check your email for the magic login link!");
+    else alert("Check your email for the login link!");
   }
 
   return (
